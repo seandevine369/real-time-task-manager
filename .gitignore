@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+# Logs
+logs/
+npm-debug.log*
+# Docker files
+*.env
+.dockerignore
+# Build output
+build/
+dist/

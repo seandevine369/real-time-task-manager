@@ -1,0 +1,11 @@
+{
+  "name": "real-time-task-manager",
+  "version": "1.0.0",
+  "description": "Real Time Task Manager",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Sean Devine",
+  "license": "ISC"
+}
