@@ -1,4 +1,4 @@
-const { GraphQLSchema, GraphQLObjectType, GraphQLNonNull, GraphQLList, GraphQLString, GraphQLID } = require('graphql');
+const { GraphQLSchema, GraphQLObjectType, GraphQLList, GraphQLString, GraphQLID } = require('graphql');
 
 
 const UserType = new GraphQLObjectType({
@@ -40,11 +40,24 @@ const RootMutationType = new GraphQLObjectType({
         addUser: {
             type: UserType,
             args: {
-                name: { type: new GraphQLNonNull(GraphQLString) },
-                email: { type: new GraphQLNonNull(GraphQLString) }
+                name: { type: GraphQLString },
+                email: { type: GraphQLString }
             },
-            resolve: (parent, {name, email}) => {
-                const newUser = {id: Date.now().toString(), name, email };
+            resolve: (parent, args) => {
+                if (!args.name || !args.email) {
+                    throw new Error('Name and email are required fields');
+                }
+                
+                const existingUser = users.find(user => user.email == args.email);
+                if (existingUser) {
+                    throw new Error('User with this email already exists');
+                }
+
+                const newUser = {
+                    id: Date.now().toString(), 
+                    name: args.name, 
+                    email: args.email 
+                };
                 users.push(newUser);
                 return newUser
             }
