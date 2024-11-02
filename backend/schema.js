@@ -14,6 +14,10 @@ const UserType = new GraphQLObjectType({
 // Sample data array
 const users = [];
 
+const isEmailInUse = (email, currentUserId = null) => {
+    return users.some(user => user.email === email && user.id !== currentUserId);
+  };
+
 // Define a simple Query type
 const RootQueryType = new GraphQLObjectType({
   name: 'Query',
@@ -25,7 +29,7 @@ const RootQueryType = new GraphQLObjectType({
     user: {
         type: UserType,
         args: {id: {type: GraphQLID}},
-        resolve: (parent, args) => users.find(user => user.id == args.id)
+        resolve: (parent, args) => users.find(user => user.id === args.id)
     },
     message: {
       type: GraphQLString,
@@ -48,8 +52,7 @@ const RootMutationType = new GraphQLObjectType({
                     throw new Error('Name and email are required fields');
                 }
                 
-                const existingUser = users.find(user => user.email == args.email);
-                if (existingUser) {
+                if (isEmailInUse(args.email)) {
                     throw new Error('User with this email already exists');
                 }
 
@@ -60,6 +63,29 @@ const RootMutationType = new GraphQLObjectType({
                 };
                 users.push(newUser);
                 return newUser
+            }
+        },
+        updateUser: {
+            type: UserType,
+            args: {
+                id: { type: GraphQLID },
+                name: { type: GraphQLString },
+                email: { type: GraphQLString }
+            },
+            resolve: (parent, args) => {
+                const user = users.find(user => user.id === args.id);
+                if (!user) {
+                    throw new Error("User not found");
+                }
+
+                if (args.name) user.name = args.name;
+                if (args.email) {
+                    if (isEmailInUse(args.email, user.id)) {
+                        throw new Error('Email already in use');
+                      }
+                    user.email = args.email;
+                }
+                return user;
             }
         }
     }
