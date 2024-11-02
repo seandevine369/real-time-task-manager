@@ -87,6 +87,22 @@ const RootMutationType = new GraphQLObjectType({
                 }
                 return user;
             }
+        },
+        deleteUser: {
+            type: UserType,
+            args: {
+                id: { type: GraphQLID }
+            },
+            resolve: (parent, args) => {
+                const userIndex = users.findIndex(user => user.id === args.id);
+                if (userIndex === -1) {
+                    throw new Error('User not found');
+                }
+
+                // Remove user from the array
+                const deletedUser = users.splice(userIndex, 1)[0];
+                return deletedUser;
+            }
         }
     }
 });
