@@ -1,5 +1,5 @@
 const express = require('express')
-const { graphqlHTTP } = require('express-graphql');
+const { createHandler } = require('graphql-http/lib/use/express'); // Import graphql-http's Express handler
 const schema = require('./schema');
 
 const app = express()
@@ -9,9 +9,8 @@ const PORT = 4000
 app.use(express.json());
 
 // GraphQL endpoint
-app.use('/graphql', graphqlHTTP({
-  schema: schema,
-  graphiql: true // Enables the GraphiQL interface for testing queries
+app.use('/graphql', createHandler({
+  schema: schema
 }));
 
 app.get('/', (req, res) => {
