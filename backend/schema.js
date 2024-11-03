@@ -45,10 +45,16 @@ const RootQueryType = new GraphQLObjectType({
         args: {id: {type: GraphQLID}},
         resolve: (parent, args) => users.find(user => user.id === args.id)
     },
-    message: {
-      type: GraphQLString,
-      resolve: () => 'Hello from GraphQL!'
-    }
+    posts: {
+        type: new GraphQLList(PostType),
+        resolve: () => posts
+      },
+  
+      post: {
+        type: PostType,
+        args: { id: { type: GraphQLID } },
+        resolve: (parent, args) => posts.find(post => post.id === args.id)
+      }
   }
 });
 
