@@ -1,18 +1,32 @@
 const { GraphQLSchema, GraphQLObjectType, GraphQLList, GraphQLString, GraphQLID } = require('graphql');
 
+const PostType = new GraphQLObjectType({
+    name: 'Post',
+    fields: {
+      id: { type: GraphQLID },
+      title: { type: GraphQLString },
+      content: { type: GraphQLString },
+      userId: { type: GraphQLID } // Link the post to a user
+    }
+  });
 
 const UserType = new GraphQLObjectType({
     name: 'User',
     fields: {
         id: { type: GraphQLID },
         name: { type: GraphQLString },
-        email: { type: GraphQLString }
+        email: { type: GraphQLString },
+        posts: {
+            type: new GraphQLList(PostType),
+            resolve: (user) => posts.filter(post => post.userId === user.id) // Fetch posts for the user
+        }
     }
 
 })
 
 // Sample data array
 const users = [];
+let posts = []; 
 
 const isEmailInUse = (email, currentUserId = null) => {
     return users.some(user => user.email === email && user.id !== currentUserId);
@@ -103,7 +117,60 @@ const RootMutationType = new GraphQLObjectType({
                 const deletedUser = users.splice(userIndex, 1)[0];
                 return deletedUser;
             }
-        }
+        },
+        //could add check that user exists
+        createPost: {
+            type: PostType,
+            args: {
+              title: { type: GraphQLString },
+              content: { type: GraphQLString },
+              userId: { type: GraphQLID }
+            },
+            resolve: (parent, args) => {
+              const newPost = {
+                id: `${posts.length + 1}`, // Simple ID generation
+                title: args.title,
+                content: args.content,
+                userId: args.userId
+              };
+              posts.push(newPost);
+              return newPost;
+            }
+          },
+          updatePost: {
+            type: PostType,
+            args: {
+              id: { type: GraphQLID },
+              title: { type: GraphQLString },
+              content: { type: GraphQLString }
+            },
+            resolve: (parent, args) => {
+              const post = posts.find(post => post.id === args.id);
+              if (!post) {
+                throw new Error('Post not found');
+              }
+          
+              // Update fields if provided
+              if (args.title) post.title = args.title;
+              if (args.content) post.content = args.content;
+          
+              return post;
+            }
+          },
+          deletePost: {
+            type: PostType,
+            args: {
+              id: { type: GraphQLID }
+            },
+            resolve: (parent, args) => {
+              const postIndex = posts.findIndex(post => post.id === args.id);
+              if (postIndex === -1) {
+                throw new Error('Post not found');
+              }
+              const deletedPost = posts.splice(postIndex, 1)[0];
+              return deletedPost;
+            }
+          }
     }
 });
 
