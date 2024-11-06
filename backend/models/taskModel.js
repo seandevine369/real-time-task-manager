@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/dbConfig');
 const logger = require('../logger');
 
 const getAllTasks = async () => {
@@ -12,6 +12,12 @@ const getTaskById = async (id) => {
     const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
     return result.rows[0];
 };
+
+const getAllTasksByUserId = async (userId) => {
+    logger.info(`Fetching tasks for user ID ${userId}`);
+    const result = await pool.query('SELECT * FROM tasks WHERE user_id = $1', [userId]);
+    return result.rows;
+  };
 
 const createTask = async (title, description, user_id) => {
     logger.info(`Creating new task for user ID ${user_id}: "${title}"`);
@@ -40,4 +46,4 @@ const deleteTask = async (id) => {
     return result.rows[0];
 };
 
-module.exports = { getAllTasks, getTaskById, createTask, updateTask, deleteTask };
+module.exports = { getAllTasks, getTaskById, getAllTasksByUserId, createTask, updateTask, deleteTask };

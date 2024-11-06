@@ -1,9 +1,9 @@
 const express = require('express')
 const { createHandler } = require('graphql-http/lib/use/express'); // Import graphql-http's Express handler
-const schema = require('./schema');
+const schema = require('./schema/index');
 
 const app = express()
-const PORT = 4000
+const PORT = process.env.PORT || 4000;
 
 // Middleware to parse JSON requests
 app.use(express.json());
