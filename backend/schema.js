@@ -1,13 +1,16 @@
 const { GraphQLSchema, GraphQLObjectType, GraphQLList, GraphQLString, GraphQLID } = require('graphql');
 const logger = require('./logger');
+const { getAllUsers, getUserById, createUser, updateUser, deleteUser } = require('./db/users');
+const { getAllTasks, getTaskById, createTask, updateTask, deleteTask } = require('./db/tasks');
 
-const PostType = new GraphQLObjectType({
-    name: 'Post',
+const TaskType = new GraphQLObjectType({
+    name: 'Task',
     fields: {
         id: { type: GraphQLID },
         title: { type: GraphQLString },
-        content: { type: GraphQLString },
-        userId: { type: GraphQLID } // Link the post to a user
+        description: { type: GraphQLString },
+        user_id: { type: GraphQLID }, // Link the task to a user,
+        status: { type: GraphQLString }
     }
 });
 
@@ -17,20 +20,16 @@ const UserType = new GraphQLObjectType({
         id: { type: GraphQLID },
         name: { type: GraphQLString },
         email: { type: GraphQLString },
-        posts: {
-            type: new GraphQLList(PostType),
-            resolve: (user) => posts.filter(post => post.userId === user.id) // Fetch posts for the user
+        tasks: {
+            type: new GraphQLList(TaskType),
+            resolve: async (user) => {
+                logger.info(`Fetching tasks for user with ID ${user.id}`);
+                return getAllTasks().then(tasks => tasks.filter(task => task.user_id === user.id));
+            }
         }
     }
 });
 
-// Sample data arrays
-const users = [];
-let posts = [];
-
-const isEmailInUse = (email, currentUserId = null) => {
-    return users.some(user => user.email === email && user.id !== currentUserId);
-};
 
 const RootQueryType = new GraphQLObjectType({
     name: 'Query',
@@ -38,41 +37,31 @@ const RootQueryType = new GraphQLObjectType({
         users: {
             type: new GraphQLList(UserType),
             resolve: () => {
-                logger.info('Fetching all users');
-                return users;
+                logger.info('GraphQL Query: Fetching all users');
+                return getAllUsers();
             }
         },
         user: {
             type: UserType,
             args: { id: { type: GraphQLID } },
             resolve: (parent, args) => {
-                const user = users.find(user => user.id === args.id);
-                if (!user) {
-                    logger.warn(`User with ID ${args.id} not found`);
-                    throw new Error('User not found');
-                }
-                logger.info(`Fetching user with ID ${args.id}`);
-                return user;
+                logger.info(`GraphQL Query: Fetching user with ID ${args.id}`);
+                return getUserById(args.id);
             }
         },
-        posts: {
-            type: new GraphQLList(PostType),
+        tasks: {
+            type: new GraphQLList(TaskType),
             resolve: () => {
-                logger.info('Fetching all posts');
-                return posts;
+                logger.info('GraphQL Query: Fetching all tasks');
+                return getAllTasks();
             }
         },
-        post: {
-            type: PostType,
+        task: {
+            type: TaskType,
             args: { id: { type: GraphQLID } },
             resolve: (parent, args) => {
-                const post = posts.find(post => post.id === args.id);
-                if (!post) {
-                    logger.warn(`Post with ID ${args.id} not found`);
-                    throw new Error('Post not found');
-                }
-                logger.info(`Fetching post with ID ${args.id}`);
-                return post;
+                logger.info(`GraphQL Query: Fetching task with ID ${args.id}`);
+                return getTaskById(args.id);
             }
         }
     }
@@ -81,6 +70,7 @@ const RootQueryType = new GraphQLObjectType({
 const RootMutationType = new GraphQLObjectType({
     name: 'Mutation',
     fields: {
+        // could be buged because createUser in resolver may not return UserType
         addUser: {
             type: UserType,
             args: {
@@ -88,24 +78,8 @@ const RootMutationType = new GraphQLObjectType({
                 email: { type: GraphQLString }
             },
             resolve: (parent, args) => {
-                if (!args.name || !args.email) {
-                    logger.error('Name and email are required fields');
-                    throw new Error('Name and email are required fields');
-                }
-
-                if (isEmailInUse(args.email)) {
-                    logger.warn(`Attempt to add user with duplicate email: ${args.email}`);
-                    throw new Error('User with this email already exists');
-                }
-
-                const newUser = {
-                    id: Date.now().toString(),
-                    name: args.name,
-                    email: args.email
-                };
-                users.push(newUser);
-                logger.info(`Added new user with ID ${newUser.id}`);
-                return newUser;
+                logger.info(`GraphQL Mutation: Adding new user with email ${args.email}`);
+                return createUser(args.name, args.email);
             }
         },
         updateUser: {
@@ -116,23 +90,8 @@ const RootMutationType = new GraphQLObjectType({
                 email: { type: GraphQLString }
             },
             resolve: (parent, args) => {
-                const user = users.find(user => user.id === args.id);
-                if (!user) {
-                    logger.warn(`User with ID ${args.id} not found for update`);
-                    throw new Error("User not found");
-                }
-
-                if (args.name) user.name = args.name;
-                if (args.email) {
-                    if (isEmailInUse(args.email, user.id)) {
-                        logger.warn(`Attempt to update user with duplicate email: ${args.email}`);
-                        throw new Error('Email already in use');
-                    }
-                    user.email = args.email;
-                }
-
-                logger.info(`Updated user with ID ${args.id}`);
-                return user;
+                logger.info(`GraphQL Mutation: Updating user with ID ${args.id}`);
+                return updateUser(args.id, args.name, args.email);
             }
         },
         deleteUser: {
@@ -141,72 +100,43 @@ const RootMutationType = new GraphQLObjectType({
                 id: { type: GraphQLID }
             },
             resolve: (parent, args) => {
-                const userIndex = users.findIndex(user => user.id === args.id);
-                if (userIndex === -1) {
-                    logger.warn(`User with ID ${args.id} not found for deletion`);
-                    throw new Error('User not found');
-                }
-
-                const deletedUser = users.splice(userIndex, 1)[0];
-                logger.info(`Deleted user with ID ${deletedUser.id}`);
-                return deletedUser;
+                logger.info(`GraphQL Mutation: Deleting user with ID ${args.id}`);
+                return deleteUser(args.id);
             }
         },
-        createPost: {
-            type: PostType,
+        createTask: {
+            type: TaskType,
             args: {
                 title: { type: GraphQLString },
-                content: { type: GraphQLString },
-                userId: { type: GraphQLID }
+                description: { type: GraphQLString },
+                user_id: { type: GraphQLID }
             },
             resolve: (parent, args) => {
-                const newPost = {
-                    id: `${posts.length + 1}`,
-                    title: args.title,
-                    content: args.content,
-                    userId: args.userId
-                };
-                posts.push(newPost);
-                logger.info(`Created new post with ID ${newPost.id} for user ID ${args.userId}`);
-                return newPost;
+                logger.info(`GraphQL Mutation: Creating new task for user ID ${args.user_id}`);
+                return createTask(args.title, args.description, args.user_id);
             }
         },
-        updatePost: {
-            type: PostType,
+        updateTask: {
+            type: TaskType,
             args: {
                 id: { type: GraphQLID },
                 title: { type: GraphQLString },
-                content: { type: GraphQLString }
+                description: { type: GraphQLString },
+                status: { type: GraphQLString }
             },
             resolve: (parent, args) => {
-                const post = posts.find(post => post.id === args.id);
-                if (!post) {
-                    logger.warn(`Post with ID ${args.id} not found for update`);
-                    throw new Error('Post not found');
-                }
-
-                if (args.title) post.title = args.title;
-                if (args.content) post.content = args.content;
-
-                logger.info(`Updated post with ID ${args.id}`);
-                return post;
+                logger.info(`GraphQL Mutation: Updating task with ID ${args.id}`);
+                return updateTask(args.id, args.title, args.description, args.statusƒ);
             }
         },
-        deletePost: {
-            type: PostType,
+        deleteTask: {
+            type: TaskType,
             args: {
                 id: { type: GraphQLID }
             },
             resolve: (parent, args) => {
-                const postIndex = posts.findIndex(post => post.id === args.id);
-                if (postIndex === -1) {
-                    logger.warn(`Post with ID ${args.id} not found for deletion`);
-                    throw new Error('Post not found');
-                }
-
-                const deletedPost = posts.splice(postIndex, 1)[0];
-                logger.info(`Deleted post with ID ${deletedPost.id}`);
-                return deletedPost;
+                logger.info(`GraphQL Mutation: Deleting task with ID ${args.id}`);
+                return deleteTask(args.id);
             }
         }
     }

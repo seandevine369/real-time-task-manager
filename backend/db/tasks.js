@@ -1,0 +1,43 @@
+const pool = require('../db');
+const logger = require('../logger');
+
+const getAllTasks = async () => {
+    logger.info('Fetching all tasks from the database');
+    const result = await pool.query('SELECT * FROM tasks');
+    return result.rows;
+};
+
+const getTaskById = async (id) => {
+    logger.info(`Fetching task with ID ${id}`);
+    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    return result.rows[0];
+};
+
+const createTask = async (title, description, user_id) => {
+    logger.info(`Creating new task for user ID ${user_id}: "${title}"`);
+    const result = await pool.query(
+        'INSERT INTO tasks (title, description, user_id) VALUES ($1, $2, $3) RETURNING *',
+        [title, description, user_id]
+    );
+    return result.rows[0];
+};
+
+const updateTask = async (id, title, description, status) => {
+    logger.info(`Updating task with ID ${id} to title: "${title}", description: "${description}"`);
+    const result = await pool.query(
+        'UPDATE tasks SET title = $1, description = $2, status = $3 WHERE id = $4 RETURNING *',
+        [title, description, status, id]
+    );
+    return result.rows[0];
+};
+
+const deleteTask = async (id) => {
+    logger.info(`Deleting task with ID ${id}`);
+    const result = await pool.query(
+        'DELETE FROM tasks WHERE id = $1 RETURNING *',
+        [id]
+    );
+    return result.rows[0];
+};
+
+module.exports = { getAllTasks, getTaskById, createTask, updateTask, deleteTask };
